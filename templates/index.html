@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Segmentation Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+    <div class="background-glow background-glow-left"></div>
+    <div class="background-glow background-glow-right"></div>
+
+    <main class="shell">
+        <section class="hero card">
+            <div>
+                <p class="eyebrow">Customer segmentation engine</p>
+                <h1>Discover customer clusters with K-Means in seconds.</h1>
+                <p class="hero-copy">
+                    Upload a CSV file with Annual Income and Spending Score to map customer behavior,
+                    detect segments, and reveal actionable insights.
+                </p>
+            </div>
+
+            <div class="hero-stats">
+                <div class="stat-pill">
+                    <span>Clustering</span>
+                    <strong>K-Means</strong>
+                </div>
+                <div class="stat-pill">
+                    <span>Segments</span>
+                    <strong>4 Clusters</strong>
+                </div>
+                <div class="stat-pill">
+                    <span>Output</span>
+                    <strong>Scatter Plot</strong>
+                </div>
+            </div>
+        </section>
+
+        <section class="controls-grid">
+            <article class="card upload-card">
+                <div class="section-heading">
+                    <p class="eyebrow">Upload dataset</p>
+                    <h2>Analyze Customers</h2>
+                </div>
+
+                <p class="section-copy">CSV files should include columns for Annual Income and Spending Score.</p>
+
+                <div class="upload-box">
+                    <input type="file" id="fileInput" accept=".csv">
+                    <label for="clusterMode" class="select-label">Cluster mode</label>
+                    <select id="clusterMode">
+                        <option value="auto" selected>Auto (Elbow recommendation)</option>
+                        <option value="2">2 clusters</option>
+                        <option value="3">3 clusters</option>
+                        <option value="4">4 clusters</option>
+                        <option value="5">5 clusters</option>
+                        <option value="6">6 clusters</option>
+                        <option value="7">7 clusters</option>
+                        <option value="8">8 clusters</option>
+                    </select>
+                    <button id="analyzeButton" type="button">Analyze Customers</button>
+                </div>
+
+                <div id="loadingIndicator" class="loading hidden" aria-live="polite">
+                    <span class="spinner"></span>
+                    <span>Processing customer segments...</span>
+                </div>
+
+                <div id="errorMessage" class="message error hidden"></div>
+                <div id="successMessage" class="message success hidden"></div>
+            </article>
+
+            <article class="card insight-card">
+                <div class="section-heading">
+                    <p class="eyebrow">Customer insights</p>
+                    <h2>Dynamic cluster descriptions</h2>
+                </div>
+                <div class="filter-grid">
+                    <div>
+                        <label for="clusterFilter" class="select-label">Filter cluster</label>
+                        <select id="clusterFilter">
+                            <option value="all" selected>All clusters</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="insightSearch" class="select-label">Search insight</label>
+                        <input type="text" id="insightSearch" placeholder="Search label or description">
+                    </div>
+                </div>
+                <div id="insightsEmpty" class="empty-state">
+                    Upload a CSV file to generate segment summaries.
+                </div>
+                <div id="insightsList" class="insights-list"></div>
+            </article>
+        </section>
+
+        <section class="card chart-card">
+            <div class="chart-header">
+                <div class="section-heading">
+                    <p class="eyebrow">Visualization</p>
+                    <h2>Customer scatter plot</h2>
+                </div>
+                <div class="header-actions">
+                    <div id="elbowBadge" class="badge">Elbow method: waiting for data</div>
+                    <button id="exportCsvButton" class="ghost-button" type="button" disabled>Export CSV</button>
+                    <button id="exportPdfButton" class="ghost-button" type="button" disabled>Export PDF</button>
+                </div>
+            </div>
+            <div class="chart-grid">
+                <canvas id="clusterChart"></canvas>
+                <canvas id="elbowChart"></canvas>
+            </div>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
