@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request
+from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.utils import secure_filename
 
 from model import analyze_customers
@@ -51,6 +52,15 @@ def analyze():
         return jsonify({"error": "An unexpected error occurred while processing the file."}), 500
 
     return jsonify(analysis)
+
+
+@app.errorhandler(RequestEntityTooLarge)
+def handle_large_file_error(_error):
+    max_size_mb = MAX_UPLOAD_SIZE // (1024 * 1024)
+    return (
+        jsonify({"error": f"File is too large. Maximum allowed size is {max_size_mb} MB."}),
+        413,
+    )
 
 
 if __name__ == "__main__":

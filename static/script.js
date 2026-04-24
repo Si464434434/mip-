@@ -533,10 +533,22 @@ async function analyzeCustomers() {
             body: formData,
         });
 
-        const payload = await response.json();
+        const contentType = response.headers.get("content-type") || "";
+        const isJson = contentType.includes("application/json");
+        const payload = isJson ? await response.json() : await response.text();
 
         if (!response.ok) {
-            throw new Error(payload.error || "Unable to analyze customers.");
+            if (isJson && payload && typeof payload === "object") {
+                throw new Error(payload.error || "Unable to analyze customers.");
+            }
+
+            const text = typeof payload === "string" ? payload : "";
+            const shortMessage = text.replace(/\s+/g, " ").trim().slice(0, 180);
+            throw new Error(shortMessage || "Unable to analyze customers.");
+        }
+
+        if (!isJson || !payload || typeof payload !== "object") {
+            throw new Error("Server returned an unexpected response format.");
         }
 
         analysisState = payload;
