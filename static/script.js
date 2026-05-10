@@ -5,22 +5,38 @@ let analysisState = null;
 const fileInput = document.getElementById("fileInput");
 const clusterMode = document.getElementById("clusterMode");
 const analyzeButton = document.getElementById("analyzeButton");
+const predictIncomeInput = document.getElementById("predictIncome");
+const predictSpendingInput = document.getElementById("predictSpending");
+const predictClusterButton = document.getElementById("predictClusterButton");
+const predictionResult = document.getElementById("predictionResult");
 const loadingIndicator = document.getElementById("loadingIndicator");
 const errorMessage = document.getElementById("errorMessage");
 const successMessage = document.getElementById("successMessage");
 const insightsList = document.getElementById("insightsList");
 const insightsEmpty = document.getElementById("insightsEmpty");
+const customerSegmentList = document.getElementById("customerSegmentList");
+const customerSegmentsEmpty = document.getElementById("customerSegmentsEmpty");
 const elbowBadge = document.getElementById("elbowBadge");
 const clusterFilter = document.getElementById("clusterFilter");
 const insightSearch = document.getElementById("insightSearch");
+const clearInsightSearchButton = document.getElementById("clearInsightSearchButton");
+const insightSearchMeta = document.getElementById("insightSearchMeta");
 const exportCsvButton = document.getElementById("exportCsvButton");
 const exportPdfButton = document.getElementById("exportPdfButton");
 
 analyzeButton.addEventListener("click", analyzeCustomers);
+predictClusterButton.addEventListener("click", identifyCluster);
 clusterFilter.addEventListener("change", applyDashboardFilters);
 insightSearch.addEventListener("input", applyDashboardFilters);
+clearInsightSearchButton.addEventListener("click", clearInsightSearch);
 exportCsvButton.addEventListener("click", exportCsvReport);
 exportPdfButton.addEventListener("click", exportPdfReport);
+
+function clearInsightSearch() {
+    insightSearch.value = "";
+    applyDashboardFilters();
+    insightSearch.focus();
+}
 
 function setLoading(isLoading) {
     loadingIndicator.classList.toggle("hidden", !isLoading);
@@ -46,6 +62,18 @@ function resetMessages() {
 function setExportEnabled(enabled) {
     exportCsvButton.disabled = !enabled;
     exportPdfButton.disabled = !enabled;
+    predictClusterButton.disabled = !enabled;
+}
+
+function setPredictionMessage(text, kind = "info") {
+    predictionResult.className = `message ${kind}`;
+    predictionResult.textContent = text;
+    predictionResult.classList.remove("hidden");
+}
+
+function hidePredictionMessage() {
+    predictionResult.textContent = "";
+    predictionResult.className = "message info hidden";
 }
 
 function populateClusterFilter(payload) {
@@ -64,15 +92,139 @@ function normalizeText(value) {
     return String(value || "").trim().toLowerCase();
 }
 
+function parseNumericInput(input) {
+    const value = Number(input.value);
+    return Number.isFinite(value) ? value : null;
+}
+
+function buildPredictionStats() {
+    const points = analysisState?.points || [];
+    if (!points.length) {
+        return null;
+    }
+
+    const incomes = points.map((point) => point.x);
+    const spendings = points.map((point) => point.y);
+
+    const incomeMin = Math.min(...incomes);
+    const incomeMax = Math.max(...incomes);
+    const spendingMin = Math.min(...spendings);
+    const spendingMax = Math.max(...spendings);
+
+    return {
+        incomeMin,
+        incomeMax,
+        spendingMin,
+        spendingMax,
+        incomeRange: Math.max(1, incomeMax - incomeMin),
+        spendingRange: Math.max(1, spendingMax - spendingMin),
+    };
+}
+
+function getSegmentRecommendation(label) {
+    const recommendations = {
+        "High Value": "Offer premium bundles, early access, and loyalty rewards.",
+        "Premium but Cautious": "Use personalized nudges and value-focused campaigns.",
+        "Growth Potential": "Promote cross-sell offers and engagement discounts.",
+        "Low Value": "Run reactivation campaigns with low-friction entry offers.",
+    };
+
+    return recommendations[label] || "Review behavior and run a targeted retention strategy.";
+}
+
+function identifyClusterFromValues(income, spending) {
+    if (!analysisState?.clusterCenters?.length) {
+        return null;
+    }
+
+    const stats = buildPredictionStats();
+    if (!stats) {
+        return null;
+    }
+
+    const rankedMatches = analysisState.clusterCenters
+        .map((center) => {
+            const normalizedIncomeDistance = (income - center.x) / stats.incomeRange;
+            const normalizedSpendingDistance = (spending - center.y) / stats.spendingRange;
+            const distance = Math.hypot(normalizedIncomeDistance, normalizedSpendingDistance);
+
+            return {
+                ...center,
+                distance,
+            };
+        })
+        .sort((left, right) => left.distance - right.distance);
+
+    const nearest = rankedMatches[0];
+    const similarity = Math.max(0, Math.round(100 / (1 + nearest.distance)));
+    const outOfRange =
+        income < stats.incomeMin ||
+        income > stats.incomeMax ||
+        spending < stats.spendingMin ||
+        spending > stats.spendingMax;
+
+    return {
+        nearest,
+        rankedMatches: rankedMatches.slice(0, 3),
+        similarity,
+        outOfRange,
+        stats,
+    };
+}
+
+function identifyCluster() {
+    resetMessages();
+    hidePredictionMessage();
+
+    if (!analysisState) {
+        showMessage(errorMessage, "Run analysis first before identifying a cluster.");
+        return;
+    }
+
+    const income = parseNumericInput(predictIncomeInput);
+    const spending = parseNumericInput(predictSpendingInput);
+
+    if (income === null || spending === null) {
+        showMessage(errorMessage, "Enter valid Annual Income and Spending Score values.");
+        return;
+    }
+
+    if (income < 0 || spending < 0) {
+        showMessage(errorMessage, "Income and Spending Score cannot be negative.");
+        return;
+    }
+
+    const predicted = identifyClusterFromValues(income, spending);
+    if (!predicted) {
+        showMessage(errorMessage, "Cluster data is not ready yet. Run analysis again.");
+        return;
+    }
+
+    const nearest = predicted.nearest;
+    const recommendation = getSegmentRecommendation(nearest.label);
+    const rangeNote = predicted.outOfRange
+        ? `Input is outside dataset range (Income ${predicted.stats.incomeMin.toFixed(1)}-${predicted.stats.incomeMax.toFixed(1)}, Spending ${predicted.stats.spendingMin.toFixed(1)}-${predicted.stats.spendingMax.toFixed(1)}).`
+        : "Input is within the dataset range.";
+    const topMatches = predicted.rankedMatches
+        .map((match, index) => `${index + 1}) Cluster ${match.cluster + 1} ${match.label}`)
+        .join(" | ");
+
+    setPredictionMessage(
+        `Nearest segment: Cluster ${nearest.cluster + 1} (${nearest.label})\nSimilarity score: ${predicted.similarity}%\n${rangeNote}\nRecommendation: ${recommendation}\nTop matches: ${topMatches}`,
+        "success",
+    );
+}
+
 function getFilteredView() {
     if (!analysisState) {
-        return { points: [], clusters: [] };
+        return { points: [], clusters: [], customerSegments: [] };
     }
 
     const selectedCluster = clusterFilter.value || "all";
     const searchQuery = normalizeText(insightSearch.value);
     const allPoints = analysisState.points || [];
     const allClusters = analysisState.clusters || [];
+    const allCustomerSegments = analysisState.customerSegments || [];
 
     const clusterById = new Map(allClusters.map((cluster) => [String(cluster.cluster), cluster]));
 
@@ -108,20 +260,71 @@ function getFilteredView() {
         return normalizeText(pointCluster.label).includes(searchQuery) || normalizeText(pointCluster.description).includes(searchQuery);
     });
 
+    const filteredCustomerSegments = allCustomerSegments.filter((customer) => {
+        const customerClusterId = String(customer.cluster);
+        if (!allowedClusterIds.has(customerClusterId)) {
+            return false;
+        }
+
+        if (!searchQuery) {
+            return true;
+        }
+
+        const searchableText = [
+            customer.label,
+            `cluster ${Number(customer.cluster) + 1}`,
+            `customer ${customer.customer}`,
+            String(customer.income),
+            String(customer.spending),
+        ]
+            .join(" ")
+            .toLowerCase();
+
+        return searchableText.includes(searchQuery);
+    });
+
     return {
         points: filteredPoints,
         clusters: filteredClusters,
+        customerSegments: filteredCustomerSegments,
+        searchQuery,
     };
+}
+
+function updateInsightSearchMeta(filtered) {
+    if (!analysisState) {
+        insightSearchMeta.textContent = "Use search to filter insights and customer rows.";
+        clearInsightSearchButton.disabled = true;
+        return;
+    };
+
+    const totalClusters = (analysisState.clusters || []).length;
+    const totalCustomers = (analysisState.customerSegments || []).length;
+    const visibleClusters = (filtered.clusters || []).length;
+    const visibleCustomers = (filtered.customerSegments || []).length;
+    const query = filtered.searchQuery || "";
+
+    clearInsightSearchButton.disabled = query.length === 0;
+
+    if (!query) {
+        insightSearchMeta.textContent = `Showing ${visibleClusters}/${totalClusters} insights and ${visibleCustomers}/${totalCustomers} customers.`;
+        return;
+    }
+
+    insightSearchMeta.textContent = `Search "${query}" matched ${visibleClusters} insights and ${visibleCustomers} customers.`;
 }
 
 function applyDashboardFilters() {
     if (!analysisState) {
+        updateInsightSearchMeta({ clusters: [], customerSegments: [], searchQuery: "" });
         return;
     }
 
     const filtered = getFilteredView();
     renderChart(filtered.points, analysisState.clusterLabels || {});
     renderInsights(filtered.clusters || []);
+    renderCustomerSegments(filtered.customerSegments || []);
+    updateInsightSearchMeta(filtered);
 }
 
 function escapeCsv(value) {
@@ -499,6 +702,29 @@ function renderInsights(clusters) {
         .join("");
 }
 
+function renderCustomerSegments(customerSegments) {
+    if (!customerSegments || customerSegments.length === 0) {
+        customerSegmentsEmpty.classList.remove("hidden");
+        customerSegmentList.innerHTML = "";
+        return;
+    }
+
+    customerSegmentsEmpty.classList.add("hidden");
+    customerSegmentList.innerHTML = customerSegments
+        .map(
+            (customer) => `
+                <div class="customer-row">
+                    <div class="customer-row-main">
+                        <strong>Customer ${customer.customer}</strong>
+                        <span>Income: ${customer.income.toFixed(1)} | Spending: ${customer.spending.toFixed(1)}</span>
+                    </div>
+                    <span class="meta-chip customer-chip">Cluster ${customer.cluster + 1}: ${customer.label}</span>
+                </div>
+            `,
+        )
+        .join("");
+}
+
 function updateElbowBadge(elbow, selectedClusters, mode) {
     if (!elbow || !elbow.suggestedClusters || !selectedClusters) {
         elbowBadge.textContent = "Elbow method: waiting for data";
@@ -535,7 +761,18 @@ async function analyzeCustomers() {
 
         const contentType = response.headers.get("content-type") || "";
         const isJson = contentType.includes("application/json");
-        const payload = isJson ? await response.json() : await response.text();
+        let payload;
+
+        if (isJson) {
+            const responseClone = response.clone();
+            try {
+                payload = await response.json();
+            } catch {
+                payload = await responseClone.text();
+            }
+        } else {
+            payload = await response.text();
+        }
 
         if (!response.ok) {
             if (isJson && payload && typeof payload === "object") {
@@ -558,7 +795,9 @@ async function analyzeCustomers() {
         renderChart(payload.points || [], payload.clusterLabels || {});
         renderElbowChart(payload.elbow || {}, payload.selectedClusters);
         renderInsights(payload.clusters || []);
+        renderCustomerSegments(payload.customerSegments || []);
         updateElbowBadge(payload.elbow || {}, payload.selectedClusters, clusterMode.value || "auto");
+        hidePredictionMessage();
         applyDashboardFilters();
         showMessage(successMessage, `Analysis completed successfully. ${payload.points.length} customers clustered into ${payload.selectedClusters} segments.`);
     } catch (error) {

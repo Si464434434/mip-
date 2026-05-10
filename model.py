@@ -22,7 +22,36 @@ def _find_column(columns: List[str], keywords: List[str]) -> str | None:
 
 
 def _format_currency(value: float) -> str:
-    return f"{value:,.2f}"
+    """Format currency in Indian numbering system (lakhs and hajar)."""
+    def indian_number_format(num: float) -> str:
+        num = int(num)
+        if num < 0:
+            return '-' + indian_number_format(-num)
+        
+        num_str = str(num)
+        if len(num_str) <= 3:
+            return num_str
+        
+        # Split into groups from right: units (3), thousands (2), lakhs (2), crores (2), etc.
+        parts = []
+        remainder = num_str
+        
+        # Last 3 digits (units)
+        parts.append(remainder[-3:])
+        remainder = remainder[:-3]
+        
+        # Group by 2 digits from right for lakhs, crores, etc.
+        while remainder:
+            if len(remainder) > 2:
+                parts.append(remainder[-2:])
+                remainder = remainder[:-2]
+            else:
+                parts.append(remainder)
+                remainder = ""
+        
+        return ','.join(reversed(parts))
+    
+    return f"₹{indian_number_format(value)}"
 
 
 def _assign_cluster_name(income: float, spending: float, income_median: float, spending_median: float) -> Tuple[str, str]:
@@ -118,14 +147,35 @@ def analyze_customers(file_path: str | Path, n_clusters: int | None = None) -> D
             "description": description,
         }
 
+    cluster_centers = [
+        {
+            "cluster": int(cluster_id),
+            "x": float(center[0]),
+            "y": float(center[1]),
+            "label": cluster_profiles[int(cluster_id)]["label"],
+        }
+        for cluster_id, center in enumerate(centers)
+    ]
+
     points = []
+    customer_segments = []
     for index, row in clean_frame.iterrows():
         cluster_id = int(cluster_ids[index])
         profile = cluster_profiles[cluster_id]
+        customer_number = index + 1
         points.append(
             {
                 "x": float(row["Annual Income"]),
                 "y": float(row["Spending Score"]),
+                "cluster": cluster_id,
+                "label": profile["label"],
+            }
+        )
+        customer_segments.append(
+            {
+                "customer": customer_number,
+                "income": float(row["Annual Income"]),
+                "spending": float(row["Spending Score"]),
                 "cluster": cluster_id,
                 "label": profile["label"],
             }
@@ -154,8 +204,10 @@ def analyze_customers(file_path: str | Path, n_clusters: int | None = None) -> D
 
     return {
         "points": points,
+        "customerSegments": customer_segments,
         "clusters": insights,
         "clusterLabels": {str(cluster_id): profile["label"] for cluster_id, profile in cluster_profiles.items()},
+        "clusterCenters": cluster_centers,
         "selectedClusters": selected_clusters,
         "maxClusters": max_allowed_clusters,
         "elbow": {

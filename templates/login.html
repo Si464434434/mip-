@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In | Customer Segmentation Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="auth-page">
+    <div class="background-glow background-glow-left"></div>
+    <div class="background-glow background-glow-right"></div>
+
+    <main class="auth-shell">
+        <section class="auth-card card">
+            <p class="eyebrow">Secure access</p>
+            <h1>Sign in to the segmentation dashboard.</h1>
+            <p class="hero-copy">
+                Use your dashboard credentials to upload customer data, review clusters, and export reports.
+            </p>
+
+            <form class="auth-form" method="post" action="{{ url_for('login') }}">
+                <label for="username" class="select-label">Username</label>
+                <input type="text" id="username" name="username" autocomplete="username" required>
+
+                <label for="password" class="select-label">Password</label>
+                <input type="password" id="password" name="password" autocomplete="current-password" required>
+
+                {% if error %}
+                <div class="message error">{{ error }}</div>
+                {% endif %}
+
+                <button type="submit" class="auth-button">Sign In</button>
+            </form>
+        </section>
+    </main>
+</body>
+</html>

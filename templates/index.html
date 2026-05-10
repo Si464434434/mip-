@@ -28,6 +28,10 @@
             </div>
 
             <div class="hero-stats">
+                <div class="stat-pill auth-pill">
+                    <span>Signed in as</span>
+                    <strong>{{ username }}</strong>
+                </div>
                 <div class="stat-pill">
                     <span>Clustering</span>
                     <strong>K-Means</strong>
@@ -40,6 +44,41 @@
                     <span>Output</span>
                     <strong>Scatter Plot</strong>
                 </div>
+                <a class="auth-button auth-link" href="{{ url_for('logout') }}">Sign Out</a>
+            </div>
+        </section>
+
+        <section class="card project-summary-card">
+            <div class="section-heading">
+                <p class="eyebrow">Mini project summary</p>
+                <h2>Customer segmentation using K-Means</h2>
+            </div>
+            <div class="summary-grid">
+                <article class="summary-item">
+                    <h3>Dataset source</h3>
+                    <p>Mall Customers dataset (Income and Spending Score features).</p>
+                </article>
+                <article class="summary-item">
+                    <h3>Why K = 5</h3>
+                    <p>
+                        On this dataset, 5 clusters is commonly selected because the elbow trend stabilizes near
+                        <strong>k = 5</strong>, giving a good balance of accuracy and interpretability.
+                    </p>
+                </article>
+                <article class="summary-item">
+                    <h3>Cluster graph</h3>
+                    <p>
+                        The dashboard shows a scatter cluster graph and elbow chart to visualize separation between
+                        customer groups.
+                    </p>
+                </article>
+                <article class="summary-item">
+                    <h3>Business recommendation</h3>
+                    <p>
+                        Target high-value clusters with premium offers, and run activation campaigns for low-spend
+                        clusters to improve retention.
+                    </p>
+                </article>
             </div>
         </section>
 
@@ -68,6 +107,25 @@
                     <button id="analyzeButton" type="button">Analyze Customers</button>
                 </div>
 
+                <div class="prediction-box">
+                    <div class="section-heading compact-heading">
+                        <p class="eyebrow">Identify a cluster</p>
+                        <h3>Predict the nearest customer segment</h3>
+                    </div>
+                    <div class="prediction-grid">
+                        <div>
+                            <label for="predictIncome" class="select-label">Annual Income</label>
+                            <input type="number" id="predictIncome" min="0" step="0.1" placeholder="e.g. 60">
+                        </div>
+                        <div>
+                            <label for="predictSpending" class="select-label">Spending Score</label>
+                            <input type="number" id="predictSpending" min="0" step="0.1" placeholder="e.g. 42">
+                        </div>
+                    </div>
+                    <button id="predictClusterButton" class="ghost-button" type="button" disabled>Identify Cluster</button>
+                    <div id="predictionResult" class="message info hidden"></div>
+                </div>
+
                 <div id="loadingIndicator" class="loading hidden" aria-live="polite">
                     <span class="spinner"></span>
                     <span>Processing customer segments...</span>
@@ -90,14 +148,27 @@
                         </select>
                     </div>
                     <div>
-                        <label for="insightSearch" class="select-label">Search insight</label>
+                        <div class="search-control-row">
+                            <label for="insightSearch" class="select-label">Search insight</label>
+                            <button id="clearInsightSearchButton" class="clear-search-button" type="button" disabled>Clear</button>
+                        </div>
                         <input type="text" id="insightSearch" placeholder="Search label or description">
                     </div>
                 </div>
+                <p id="insightSearchMeta" class="search-meta">Use search to filter insights and customer rows.</p>
                 <div id="insightsEmpty" class="empty-state">
                     Upload a CSV file to generate segment summaries.
                 </div>
                 <div id="insightsList" class="insights-list"></div>
+
+                <div class="section-heading customer-heading">
+                    <p class="eyebrow">Customer-level segmentation</p>
+                    <h2>All customers by segment</h2>
+                </div>
+                <div id="customerSegmentsEmpty" class="empty-state compact-empty">
+                    Uploaded customers will appear here with their assigned K-Means segment.
+                </div>
+                <div id="customerSegmentList" class="customer-segment-list"></div>
             </article>
         </section>
 

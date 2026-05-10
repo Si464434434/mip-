@@ -1,6 +1,7 @@
+import os
 from pathlib import Path
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.utils import secure_filename
 
@@ -14,19 +15,62 @@ MAX_UPLOAD_SIZE = 5 * 1024 * 1024
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = str(UPLOAD_FOLDER)
 app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_SIZE
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-secret-key")
+app.config["LOGIN_USERNAME"] = os.environ.get("APP_LOGIN_USERNAME", "admin")
+app.config["LOGIN_PASSWORD"] = os.environ.get("APP_LOGIN_PASSWORD", "admin123")
 
 
 def allowed_file(filename: str) -> bool:
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def is_authenticated() -> bool:
+    return bool(session.get("authenticated"))
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if is_authenticated():
+        return redirect(url_for("home"))
+
+    error = None
+
+    if request.method == "POST":
+        username = (request.form.get("username") or "").strip()
+        password = request.form.get("password") or ""
+
+        if (
+            username == app.config["LOGIN_USERNAME"]
+            and password == app.config["LOGIN_PASSWORD"]
+        ):
+            session["authenticated"] = True
+            session["username"] = username
+            return redirect(url_for("home"))
+
+        error = "Invalid username or password."
+
+    return render_template("login.html", error=error)
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
+
 @app.route("/")
 def home():
-    return render_template("index.html")
+    if not is_authenticated():
+        return redirect(url_for("login"))
+
+    return render_template("index.html", username=session.get("username", "Admin"))
 
 
 @app.route("/analyze", methods=["POST"])
 def analyze():
+    if not is_authenticated():
+        return jsonify({"error": "Please log in to analyze a file."}), 401
+
     uploaded_file = request.files.get("file")
     cluster_mode = (request.form.get("clusters") or "auto").strip().lower()
 
