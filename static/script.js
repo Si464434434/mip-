@@ -172,7 +172,7 @@ function identifyClusterFromValues(income, spending) {
     };
 }
 
-function identifyCluster() {
+async function identifyCluster() {
     resetMessages();
     hidePredictionMessage();
 
@@ -194,25 +194,39 @@ function identifyCluster() {
         return;
     }
 
-    const predicted = identifyClusterFromValues(income, spending);
-    if (!predicted) {
-        showMessage(errorMessage, "Cluster data is not ready yet. Run analysis again.");
-        return;
+    try {
+        const response = await fetch("/predict", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                income,
+                spending,
+                clusterCenters: analysisState.clusterCenters,
+                points: analysisState.points,
+            }),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || `HTTP error! status: ${response.status}`);
+        }
+
+        const predicted = await response.json();
+        const nearest = predicted.nearest;
+        const rangeNote = predicted.outOfRange
+            ? `Input is outside dataset range (Income ${predicted.stats.incomeMin.toFixed(1)}-${predicted.stats.incomeMax.toFixed(1)}, Spending ${predicted.stats.spendingMin.toFixed(1)}-${predicted.stats.spendingMax.toFixed(1)}).`
+            : "Input is within the dataset range.";
+        const topMatches = predicted.rankedMatches
+            .map((match, index) => `${index + 1}) Cluster ${match.cluster + 1} ${match.label}`)
+            .join(" | ");
+
+        setPredictionMessage(
+            `Nearest segment: Cluster ${nearest.cluster + 1} (${nearest.label})\nSimilarity score: ${predicted.similarity}%\n${rangeNote}\nRecommendation: ${predicted.recommendation}\nTop matches: ${topMatches}`,
+            "success",
+        );
+    } catch (error) {
+        showMessage(errorMessage, `Prediction failed: ${error.message}`);
     }
-
-    const nearest = predicted.nearest;
-    const recommendation = getSegmentRecommendation(nearest.label);
-    const rangeNote = predicted.outOfRange
-        ? `Input is outside dataset range (Income ${predicted.stats.incomeMin.toFixed(1)}-${predicted.stats.incomeMax.toFixed(1)}, Spending ${predicted.stats.spendingMin.toFixed(1)}-${predicted.stats.spendingMax.toFixed(1)}).`
-        : "Input is within the dataset range.";
-    const topMatches = predicted.rankedMatches
-        .map((match, index) => `${index + 1}) Cluster ${match.cluster + 1} ${match.label}`)
-        .join(" | ");
-
-    setPredictionMessage(
-        `Nearest segment: Cluster ${nearest.cluster + 1} (${nearest.label})\nSimilarity score: ${predicted.similarity}%\n${rangeNote}\nRecommendation: ${recommendation}\nTop matches: ${topMatches}`,
-        "success",
-    );
 }
 
 function getFilteredView() {
