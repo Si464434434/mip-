@@ -83,9 +83,11 @@ def analyze():
     UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
     safe_name = secure_filename(uploaded_file.filename) or "customers.csv"
     saved_path = UPLOAD_FOLDER / safe_name
-    uploaded_file.save(saved_path)
-
     try:
+        # Save the uploaded file inside the try so save-related errors are
+        # handled and returned as JSON instead of producing an HTML 500 page.
+        uploaded_file.save(saved_path)
+
         cluster_count = None
         if cluster_mode != "auto":
             cluster_count = int(cluster_mode)

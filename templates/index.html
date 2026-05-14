@@ -114,14 +114,19 @@
                     </div>
                     <div class="prediction-grid">
                         <div>
-                            <label for="predictIncome" class="select-label">Annual Income</label>
-                            <input type="number" id="predictIncome" min="0" step="0.1" placeholder="e.g. 60 lakh">
-                        </div>
-                        <div>
-                            <label for="predictSpending" class="select-label">Spending Score</label>
-                            <input type="number" id="predictSpending" min="0" step="0.1" placeholder="e.g. 42 lakh">
-                        </div>
-                    </div>
+    <label for="predictIncome" class="select-label">
+        Annual Income (₹)
+    </label>
+
+    <input 
+        type="number" 
+        id="predictIncome" 
+        min="0" 
+        step="1000" 
+        placeholder="e.g. 60000 or 6 lakh"
+    >
+ <div> <label for="predictIncome" class="select-label">Annual Income</label> <input type="number" id="predictIncome" min="0" step="0.1" placeholder="e.g. 60 lakh"> </div> <div> <label for="predictSpending" class="select-label">Spending Score</label> <input type="number" id="predictSpending" min="0" step="0.1" placeholder="e.g. 42 lakh"> </div> </div>
+ 
                     <button id="predictClusterButton" class="ghost-button" type="button" disabled>Identify Cluster</button>
                     <div id="predictionResult" class="message info hidden"></div>
                 </div>
